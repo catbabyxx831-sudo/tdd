@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>糖豆豆的康复日记</title>
+    <style>
+        :root {
+            --primary: #ff9a9e;
+            --accent: #ff6b6b;
+            --bg: #faf3f3;
+            --card: #ffffff;
+            --text: #4a4a4a;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+            padding-bottom: 80px; /* 底部留白 */
+        }
+        h1 { color: var(--accent); font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
+        
+        /* 卡片样式 */
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(255, 154, 158, 0.15);
+            margin-bottom: 15px;
+        }
+        
+        /* 建议框样式 */
+        #adviceBox {
+            background: #fff0f0;
+            border-left: 5px solid #ff6b6b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            display: none; /* 默认隐藏 */
+        }
+        #adviceBox.show { display: block; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+        /* 表单控件 */
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #ff8080; font-size: 0.95rem; }
+        select, input[type="number"], textarea, input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ffc2c2;
+            border-radius: 12px;
+            background: #fffdfd;
+            font-size: 16px; /* 防止iOS缩放 */
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            outline: none;
+        }
+        textarea { resize: none; }
+        
+        /* 开关按钮 */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 0;
+            border-bottom: 1px dashed #ffe0e0;
+        }
+        .toggle-row:last-child { border-bottom: none; }
+        
+        /* 自定义Checkbox */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #e0e0e0;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider { background-color: #ff9a9e; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* 按钮 */
+        .btn-save {
+            background: linear-gradient(135deg, #ff9a9e, #fecfef);
+            color: #fff;
+            border: none;
+            padding: 16px;
+            width: 100%;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 117, 140, 0.4);
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px;
+            z-index: 100;
+        }
+
+        /* 日历小圆点 */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 0.75rem;
+            position: relative;
+        }
+        .cal-day.today { border: 2px solid #ff9a9e; }
+        .status-dot {
+            width: 6px; height: 6px; border-radius: 50%; margin-top: 2px;
+        }
+        .status-happy { background-color: #7bed9f; }
+        .status-sad { background-color: #ff6b6b; }
+
+        /* 历史列表 */
+        .history-item {
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #eee;
+        }
+        .history-item.bad { border-left-color: #ff6b6b; }
+        .history-item.good { border-left-color: #7bed9f; }
+    </style>
+</head>
+<body>
+
+    <h1>🐱 糖豆豆康复日记</h1>
+
+    <div id="adviceBox"></div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <b style="color:#ff8080">📅 本月打卡</b>
+            <span id="monthLabel" style="font-size:0.9rem; color:#999"></span>
+        </div>
+        <div class="calendar-grid" id="calendar"></div>
+    </div>
+
+    <div class="card" style="margin-bottom: 80px;">
+        <h3 style="margin-top:0; color:#ff8080;">📝 今日情况</h3>
+        <form id="appForm">
+            <label>日期</label>
+            <input type="date" id="dateInput" required>
+
+            <label>⚖️ 体重 (kg)</label>
+            <input type="number" id="weight" step="0.01" placeholder="输入数字..." onchange="checkAdvice()">
+
+            <div class="toggle-row">
+                <span>💊 益生菌/药吃了吗？</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="meds" onchange="checkAdvice()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <label>💩 便便形态</label>
+            <select id="stool" onchange="checkAdvice()">
+                <option value="成型">✅ 完美条状</option>
+                <option value="软便">⚠️ 软塌塌/冰淇淋</option>
+                <option value="拉稀">❌ 水状/喷射</option>
+                <option value="没拉">🤐 今天没拉</option>
+            </select>
+
+            <div class="toggle-row">
+                <span style="color:#ff6b6b; font-weight:bold;">🩸 便便有血吗？</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="blood" onchange="checkAdvice()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <label>🐱 精神状态</label>
+            <select id="spirit" onchange="checkAdvice()">
+                <option value="开心">😄 跑酷/想玩/呼噜噜</option>
+                <option value="一般">😐 发呆/睡觉</option>
+                <option value="萎靡">😔 母鸡蹲/躲起来</option>
+            </select>
+
+            <label>💬 碎碎念/备注</label>
+            <textarea id="note" rows="3" placeholder="比如：今天偷吃了什么？有没有踩奶？"></textarea>
+        </form>
+    </div>
+
+    <button class="btn-save" onclick="saveData()">保存记录 ❤️</button>
+
+<script>
+    // 数据存储
+    let records = JSON.parse(localStorage.getItem('douDouCat')) || [];
+    
+    // 初始化
+    const dateInput = document.getElementById('dateInput');
+    dateInput.valueAsDate = new Date();
+    
+    renderCalendar();
+    checkAdvice(); // 初始化检查建议
+
+    // 智能建议逻辑 (秦之之代笔)
+    function checkAdvice() {
+        const adviceBox = document.getElementById('adviceBox');
+        const hasBlood = document.getElementById('blood').checked;
+        const stool = document.getElementById('stool').value;
+        const spirit = document.getElementById('spirit').value;
+        const weight = parseFloat(document.getElementById('weight').value);
+        
+        let warnings = [];
+        let tips = [];
+
+        // 1. 便血警告
+        if (hasBlood) {
+            warnings.push("⚠️ <b>便血警报：</b>请立刻拍照保留证据！如果血量多，不要犹豫直接联系医生。");
+        }
+        
+        // 2. 便便形态
+        if (stool === '拉稀') {
+            warnings.push("⚠️ <b>拉稀注意：</b>注意补水，防止脱水。益生菌建议加量（遵医嘱）。");
+        } else if (stool === '没拉') {
+            tips.push("💡 <b>没拉粑粑：</b>如果超过2天没拉，要摸摸肚子是不是硬硬的哦。");
+        }
+
+        // 3. 精神状态
+        if (spirit === '萎靡') {
+            warnings.push("⚠️ <b>精神萎靡：</b>猫咪很能忍痛，如果躲起来或者一直母鸡蹲，要多安抚，测个体温。");
+        } else if (spirit === '开心') {
+            tips.push("🎉 <b>太棒了：</b>精神好是康复的第一步！多陪它玩一会儿吧。");
+        }
+
+        // 4. 体重趋势 (对比上一次)
+        if (weight && records.length > 0) {
+            const lastRec = records[0]; // 最近一次
+            if (lastRec.weight && weight < lastRec.weight - 0.2) {
+                warnings.push(`📉 <b>体重下降：</b>比上次轻了 ${(lastRec.weight - weight).toFixed(2)}kg，要关注食欲哦。`);
+            }
+        }
+
+        // 显示逻辑
+        let html = "";
+        if (warnings.length > 0) {
+            html += `<div style="color:#d63031; margin-bottom:10px;">${warnings.join('<br>')}</div>`;
+        }
+        if (tips.length > 0) {
+            html += `<div style="color:#0984e3;">${tips.join('<br>')}</div>`;
+        }
+
+        if (html) {
+            adviceBox.innerHTML = html;
+            adviceBox.classList.add('show');
+        } else {
+            adviceBox.classList.remove('show');
+        }
+    }
+
+    function saveData() {
+        const todayStr = dateInput.value;
+        const data = {
+            date: todayStr,
+            weight: document.getElementById('weight').value,
+            meds: document.getElementById('meds').checked,
+            stool: document.getElementById('stool').value,
+            blood: document.getElementById('blood').checked,
+            spirit: document.getElementById('spirit').value,
+            note: document.getElementById('note').value
+        };
+
+        // 覆盖或新增
+        const idx = records.findIndex(r => r.date === todayStr);
+        if (idx > -1) records[idx] = data;
+        else records.unshift(data);
+        
+        // 排序
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        localStorage.setItem('douDouCat', JSON.stringify(records));
+        
+        alert('记录已保存！豆豆今天也很努力在康复呢 🐱');
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const container = document.getElementById('calendar');
+        container.innerHTML = '';
+        const now = new Date();
+        document.getElementById('monthLabel').innerText = `${now.getMonth()+1}月`;
+        
+        const days = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+        
+        for(let i=1; i<=days; i++) {
+            const d = i < 10 ? '0'+i : i;
+            const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${d}`;
+            const rec = records.find(r => r.date === dateStr);
+            
+            const div = document.createElement('div');
+            div.className = 'cal-day';
+            if(i === now.getDate()) div.classList.add('today');
+            
+            let content = `<span>${i}</span>`;
+            
+            if(rec) {
+                // 只要没血、没拉稀、吃了药 = 开心
+                const isGood = !rec.blood && rec.stool !== '拉稀' && rec.meds;
+                content += `<div class="status-dot ${isGood ? 'status-happy' : 'status-sad'}"></div>`;
+            }
+            
+            div.innerHTML = content;
+            container.appendChild(div);
+        }
+    }
+</script>
+</body>
+</html>
