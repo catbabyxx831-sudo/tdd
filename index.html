@@ -19,7 +19,7 @@
             color: var(--text);
             margin: 0;
             padding: 15px;
-            padding-bottom: 80px; /* 底部留白 */
+            padding-bottom: 80px; 
         }
         h1 { color: var(--accent); font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
         
@@ -192,7 +192,7 @@
             white-space: pre-wrap; 
         }
         .history-card-container {
-            padding-bottom: 50px; /* 底部留白给删除按钮 */
+            padding-bottom: 50px; 
         }
         
         /* 简易图表样式 (大便状态曲线) */
@@ -210,7 +210,7 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             overflow: hidden;
-            min-width: 300px; /* 最小宽度，防止太拥挤 */
+            min-width: 300px; 
         }
         .stool-bar {
             flex-grow: 1;
@@ -236,10 +236,10 @@
             z-index: 10;
         }
 
-        .stool-成型 { background-color: #7bed9f; } /* 绿 */
-        .stool-软便 { background-color: #f7b731; } /* 黄 */
-        .stool-拉稀 { background-color: #ff6b6b; } /* 红 */
-        .stool-没拉 { background-color: #95a5a6; } /* 灰 */
+        .stool-成型 { background-color: #7bed9f; } 
+        .stool-软便 { background-color: #f7b731; } 
+        .stool-拉稀 { background-color: #ff6b6b; } 
+        .stool-没拉 { background-color: #95a5a6; } 
     </style>
 </head>
 <body>
@@ -249,7 +249,7 @@
     <div style="text-align:center; margin-bottom:20px;">
         <button class="btn-secondary" onclick="showAdviceModal()">📋 护理指南</button>
         <button class="btn-secondary" onclick="showHistoryMainModal()">📊 历史记录</button> 
-        <button class="btn-secondary" onclick="clearAllData()" style="color:#d63031; border-color:#d63031;">🧹 清空数据</button>
+        <button class="btn-secondary" onclick="clearAllData()" style="color:#d63030; border-color:#d63030;">🧹 清空数据</button>
     </div>
 
     <div id="adviceBox"></div>
@@ -280,6 +280,14 @@
                     <span class="slider"></span>
                 </label>
             </div>
+
+            <div class="toggle-row">
+                <span style="font-weight:bold;">驱虫药 (晚上)</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="dewormer" onchange="checkAdvice()">
+                    <span class="slider"></span>
+                </label>
+            </div>
             
             <div class="toggle-row">
                 <span>护肝片：早上</span>
@@ -299,6 +307,13 @@
                 <span style="font-weight:bold;">益生菌 (晚7点半后)</span>
                 <label class="toggle-switch">
                     <input type="checkbox" id="probiotics" onchange="checkAdvice()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <span style="font-weight:bold;">乳铁蛋白 (随时)</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="lactoferrin" onchange="checkAdvice()">
                     <span class="slider"></span>
                 </label>
             </div>
@@ -385,8 +400,10 @@
 
 1. 喂药/注射小技巧（硬仗核心）：
    • **注射：** 每天晚上 7 点打针，持续 7 天。
+   • **驱虫药：** 晚上喂食，配合护肝片。
    • **护肝片：** 每日两次，分早晚喂食。
    • **益生菌：** 晚上七点打完针后**半小时**吃。
+   • **乳铁蛋白：** 增强免疫力，随时吃，饭前饭后均可。
    • **奖励机制：** 药喂完，立刻给它最爱吃的冻干或肉泥。
    • **动作要快：** 塞药后，立刻合上嘴巴，轻轻摸喉咙直到它吞咽。
 
@@ -411,8 +428,6 @@
         // 排序：按日期降序
         records.sort((a, b) => new Date(b.date) - new Date(a.date));
         renderCalendar();
-        // 历史列表现在只在 Modal 里渲染，首页不渲染
-        // renderHistoryList(); 
         checkAdvice();
     }
 
@@ -448,9 +463,11 @@
 体重：${r.weight || '未记录'} kg
 --- 药物 ---
 打针：${r.injection ? '✅ 已打 (晚7点)' : '❌ 未打'}
+驱虫药：${r.dewormer ? '✅ 已喂 (晚)' : '❌ 未喂'}
 护肝片 (早)：${r.liver_am ? '✅' : '❌'}
 护肝片 (晚)：${r.liver_pm ? '✅' : '❌'}
 益生菌：${r.probiotics ? '✅ (晚7点半后)' : '❌'}
+乳铁蛋白：${r.lactoferrin ? '✅ (随时)' : '❌'}
 ------------
 便便：${r.stool} ${r.blood ? '(🩸 有血！)' : ''}
 精神：${r.spirit}
@@ -542,10 +559,14 @@ ${r.note || '无'}
             // 所有字段都需要手动保存，以防止旧记录缺少新字段
             date: todayStr,
             weight: parseFloat(document.getElementById('weight').value) || null,
+            // --- 药物追踪 V5.0 ---
             injection: document.getElementById('injection').checked, 
+            dewormer: document.getElementById('dewormer').checked, // NEW
             liver_am: document.getElementById('liver_am').checked,
             liver_pm: document.getElementById('liver_pm').checked,
             probiotics: document.getElementById('probiotics').checked,
+            lactoferrin: document.getElementById('lactoferrin').checked, // NEW
+            // ------------------
             stool: document.getElementById('stool').value,
             blood: document.getElementById('blood').checked,
             spirit: document.getElementById('spirit').value,
@@ -576,7 +597,7 @@ ${r.note || '无'}
             records.splice(currentRecordIndex, 1);
             localStorage.setItem('douDouCat', JSON.stringify(records));
             closeHistoryDetailModal();
-            closeHistoryMainModal(); // 关闭主历史页，下次打开会刷新
+            closeHistoryMainModal(); 
             renderAll();
             alert('记录已删除。');
         }
@@ -619,13 +640,13 @@ ${r.note || '无'}
             if(rec) {
                 // 状态判断: Bad (哭唧唧 😭)
                 const isBad = rec.blood || rec.stool === '拉稀' || rec.spirit === '萎靡';
-                // 状态判断: Perfect (爱心/开心 💖) - 必须是成型、开心、无血、药物全齐（护肝片早晚，益生菌，打针）
-                const isPerfect = !rec.blood && rec.stool === '成型' && rec.spirit === '开心' && rec.liver_am && rec.liver_pm && rec.probiotics && rec.injection;
+                // 状态判断: Perfect (爱心/开心 💖) - 必须是成型、开心、无血、药物全齐
+                const isPerfect = !rec.blood && rec.stool === '成型' && rec.spirit === '开心' && rec.injection && rec.dewormer && rec.liver_am && rec.liver_pm && rec.probiotics && rec.lactoferrin;
                 
                 let emoji = '😐'; // 一般
                 if (isBad) emoji = '😭'; // 哭唧唧
                 else if (isPerfect) emoji = '💖'; // 完美
-                else if (!isBad && (rec.liver_am || rec.liver_pm || rec.probiotics || rec.injection)) emoji = '🙂'; // 状态还可以
+                else if (!isBad && (rec.injection || rec.liver_am || rec.probiotics)) emoji = '🙂'; // 状态还可以
 
                 content += `<div style="font-size:12px; line-height:1;">${emoji}</div>`;
                 
@@ -659,11 +680,14 @@ ${r.note || '无'}
             const isBad = r.blood || r.stool === '拉稀' || r.spirit === '萎靡';
             if (isBad) div.classList.add('bad');
             else div.classList.add('good');
-
+            
+            // 药物简要状态
+            const medsComplete = r.injection && r.dewormer && r.liver_am && r.liver_pm && r.probiotics && r.lactoferrin;
+            
             div.innerHTML = `
-                <div style="font-weight:bold; color:var(--text);">${r.date} - 便便: ${r.stool} / 精神: ${r.spirit} ${r.blood ? '🩸' : ''}</div>
+                <div style="font-weight:bold; color:var(--text);">${r.date} ${r.blood ? '🩸' : ''} - 便便: ${r.stool} / 精神: ${r.spirit}</div>
                 <div class="history-item-details">
-                    注射: ${r.injection ? '✅' : '❌'} | 护肝片: ${r.liver_am && r.liver_pm ? '✅全' : '❌缺'} | 备注: ${r.note ? r.note.substring(0, 20) + '...' : '无'}
+                    药物: ${medsComplete ? '✅齐全' : '❌缺失'} | 备注: ${r.note ? r.note.substring(0, 20) + '...' : '无'}
                 </div>
             `;
             
@@ -685,7 +709,7 @@ ${r.note || '无'}
         }
         
         // 只看最近30天的记录
-        const recentRecords = records.slice(0, 30).reverse(); // 反转，让时间从小到大排列
+        const recentRecords = records.slice(0, 30).reverse(); 
 
         recentRecords.forEach(r => {
             const div = document.createElement('div');
@@ -694,7 +718,7 @@ ${r.note || '无'}
                                 r.stool === '拉稀' ? '拉稀' : '没拉';
             
             div.className = `stool-bar stool-${stoolClass}`;
-            div.title = `${r.date}: ${r.stool}`; // 手机上 title 不太好用，用 data-date
+            div.title = `${r.date}: ${r.stool}`; 
             div.setAttribute('data-date', `${r.date}\n${r.stool}`);
             
             // 可以在 bar 上显示一个字母缩写
@@ -702,10 +726,9 @@ ${r.note || '无'}
             
             container.appendChild(div);
         });
-
-        // 如果记录少于30天，可以填充一些空白，但这里选择只显示现有数据
     }
 
 </script>
 </body>
 </html>
+
