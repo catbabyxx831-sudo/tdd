@@ -32,6 +32,22 @@
             margin-bottom: 15px;
         }
         
+        /* 弹出框/模态框样式 */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; 
+            width: 100%; height: 100%; overflow: auto; 
+            background-color: rgba(0,0,0,0.5); /* 黑色半透明背景 */
+        }
+        .modal-content {
+            background-color: var(--card); margin: 15% auto; padding: 20px; 
+            border-radius: 16px; width: 85%; max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp { from { opacity:0; transform:translateY(50px); } to { opacity:1; transform:translateY(0); } }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-btn:hover, .close-btn:focus { color: #ff6b6b; text-decoration: none; cursor: pointer; }
+
         /* 建议框样式 */
         #adviceBox {
             background: #fff0f0;
@@ -122,6 +138,17 @@
             max-width: 400px;
             z-index: 100;
         }
+        .btn-secondary {
+            background-color: #f7f7f7;
+            color: var(--accent);
+            border: 1px solid #ffc2c2;
+            padding: 8px 15px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            transition: background-color 0.2s;
+        }
+        .btn-secondary:active { background-color: #ffe0e0; }
 
         /* 日历小圆点 */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -150,14 +177,27 @@
             border-radius: 12px;
             margin-bottom: 10px;
             border-left: 4px solid #eee;
+            box-shadow: 0 1px 5px rgba(255, 154, 158, 0.1);
+            transition: border-left-color 0.2s;
         }
         .history-item.bad { border-left-color: #ff6b6b; }
         .history-item.good { border-left-color: #7bed9f; }
+        .history-item-details {
+            font-size: 0.85rem;
+            color: #777;
+            margin-top: 5px;
+            white-space: pre-wrap; /* 保持换行 */
+        }
     </style>
 </head>
 <body>
 
     <h1>🐱 糖豆豆康复日记</h1>
+    
+    <div style="text-align:center; margin-bottom:20px;">
+        <button class="btn-secondary" onclick="showAdviceModal()">📋 护理指南</button>
+        <button class="btn-secondary" onclick="clearAllData()" style="color:#d63031; border-color:#d63031;">🧹 清空数据</button>
+    </div>
 
     <div id="adviceBox"></div>
 
@@ -167,6 +207,11 @@
             <span id="monthLabel" style="font-size:0.9rem; color:#999"></span>
         </div>
         <div class="calendar-grid" id="calendar"></div>
+    </div>
+    
+    <div class="card" style="margin-bottom: 15px;">
+        <h3 style="margin-top:0; color:#ff8080;">📚 历史记录 (最近10条)</h3>
+        <div id="historyList"></div>
     </div>
 
     <div class="card" style="margin-bottom: 80px;">
@@ -178,13 +223,30 @@
             <label>⚖️ 体重 (kg)</label>
             <input type="number" id="weight" step="0.01" placeholder="输入数字..." onchange="checkAdvice()">
 
+            <h4 style="color:#ff8080; margin-top:15px; margin-bottom:10px;">💊 药物记录</h4>
+            
             <div class="toggle-row">
-                <span>💊 益生菌/药吃了吗？</span>
+                <span>护肝片：早上</span>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="meds" onchange="checkAdvice()">
+                    <input type="checkbox" id="liver_am" onchange="checkAdvice()">
                     <span class="slider"></span>
                 </label>
             </div>
+            <div class="toggle-row">
+                <span>护肝片：晚上</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="liver_pm" onchange="checkAdvice()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <span style="font-weight:bold;">益生菌 (晚7点半后)</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="probiotics" onchange="checkAdvice()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
 
             <label>💩 便便形态</label>
             <select id="stool" onchange="checkAdvice()">
@@ -215,18 +277,107 @@
     </div>
 
     <button class="btn-save" onclick="saveData()">保存记录 ❤️</button>
+    
+    <div id="adviceModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn" onclick="closeAdviceModal()">&times;</span>
+        <h3 style="color:#ff8080; margin-top:0;">📋 糖豆豆康复护理指南</h3>
+        <pre id="adviceContent" style="background:#f9f9f9; padding:10px; border-radius:8px; font-size:0.9rem; line-height:1.6; white-space: pre-wrap;"></pre>
+      </div>
+    </div>
+    
+    <div id="historyDetailModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn" onclick="closeHistoryDetailModal()">&times;</span>
+        <h3 style="color:#ff8080; margin-top:0;">🔍 记录详情</h3>
+        <p id="detailContent" style="font-size:1rem; line-height:1.6; white-space: pre-wrap;"></p>
+        <button class="btn-secondary" onclick="deleteRecordFromDetail()" style="color:#d63031; border-color:#d63031;">🗑️ 删除此记录</button>
+      </div>
+    </div>
+
 
 <script>
     // 数据存储
     let records = JSON.parse(localStorage.getItem('douDouCat')) || [];
+    let currentDetailRecord = null; // 用于存储当前正在查看的记录
+
+    // 护理指南内容（直接硬编码，保证随时可用）
+    const nursingAdvice = `
+🐱 糖豆豆康复护理重点 (秦之之整理)
+
+1. 喂药小技巧（硬仗核心）：
+   • **护肝片：** 每日两次，分早晚喂食。
+   • **益生菌：** 晚上七点打完针后**半小时**吃。
+   • **奖励机制：** 药喂完，立刻给它最爱吃的冻干或肉泥。
+   • **动作要快：** 塞药后，立刻合上嘴巴，轻轻摸喉咙直到它吞咽。
+
+2. 观察重点：
+   • **便血：** 看到鲜血或粘液带血，立刻拍照保留。
+   • **拉稀：** 水状/喷射，必须注意补水，防止脱水。
+   • **精神：** 如果躲在角落、母鸡蹲、不理人，说明很不舒服，要多安抚测体温。
+
+3. 饮食/环境：
+   • **饮食：** 生病期间少食多餐，24小时不吃不喝立刻送医。
+   • **环境：** 保持猫砂盆极度干净；给它一个温暖、暗一点的角落休息。
+`;
     
     // 初始化
     const dateInput = document.getElementById('dateInput');
     dateInput.valueAsDate = new Date();
     
-    renderCalendar();
-    checkAdvice(); // 初始化检查建议
+    renderAll();
 
+    // 渲染所有组件
+    function renderAll() {
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        renderCalendar();
+        renderHistoryList();
+        checkAdvice();
+    }
+
+    // 模态框控制
+    function showAdviceModal() {
+        document.getElementById('adviceContent').innerText = nursingAdvice;
+        document.getElementById('adviceModal').style.display = 'block';
+    }
+    function closeAdviceModal() {
+        document.getElementById('adviceModal').style.display = 'none';
+    }
+    function showHistoryDetailModal(recordIndex) {
+        currentDetailRecord = records[recordIndex];
+        const r = currentDetailRecord;
+        
+        // 新增药物细节
+        const details = `
+日期：${r.date}
+体重：${r.weight || '未记录'} kg
+--- 药物 ---
+护肝片 (早)：${r.liver_am ? '✅' : '❌'}
+护肝片 (晚)：${r.liver_pm ? '✅' : '❌'}
+益生菌：${r.probiotics ? '✅' : '❌'}
+------------
+便便：${r.stool} ${r.blood ? '(🩸 有血！)' : ''}
+精神：${r.spirit}
+备注：
+${r.note || '无'}
+        `.trim();
+        
+        document.getElementById('detailContent').innerText = details;
+        document.getElementById('historyDetailModal').style.display = 'block';
+    }
+    function closeHistoryDetailModal() {
+        document.getElementById('historyDetailModal').style.display = 'none';
+        currentDetailRecord = null;
+    }
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('adviceModal')) {
+            closeAdviceModal();
+        }
+        if (event.target == document.getElementById('historyDetailModal')) {
+            closeHistoryDetailModal();
+        }
+    }
+    
     // 智能建议逻辑 (秦之之代笔)
     function checkAdvice() {
         const adviceBox = document.getElementById('adviceBox');
@@ -259,9 +410,9 @@
 
         // 4. 体重趋势 (对比上一次)
         if (weight && records.length > 0) {
-            const lastRec = records[0]; // 最近一次
-            if (lastRec.weight && weight < lastRec.weight - 0.2) {
-                warnings.push(`📉 <b>体重下降：</b>比上次轻了 ${(lastRec.weight - weight).toFixed(2)}kg，要关注食欲哦。`);
+            const lastRec = records.find(r => r.weight); // 找最近一次有体重记录的
+            if (lastRec && weight < lastRec.weight - 0.2) {
+                warnings.push(`📉 <b>体重下降：</b>比上次有记录时轻了 ${(lastRec.weight - weight).toFixed(2)}kg，要关注食欲哦。`);
             }
         }
 
@@ -282,12 +433,17 @@
         }
     }
 
+    // 保存数据
     function saveData() {
         const todayStr = dateInput.value;
         const data = {
             date: todayStr,
-            weight: document.getElementById('weight').value,
-            meds: document.getElementById('meds').checked,
+            weight: parseFloat(document.getElementById('weight').value) || null,
+            // --- 新增药物追踪 ---
+            liver_am: document.getElementById('liver_am').checked,
+            liver_pm: document.getElementById('liver_pm').checked,
+            probiotics: document.getElementById('probiotics').checked,
+            // ------------------
             stool: document.getElementById('stool').value,
             blood: document.getElementById('blood').checked,
             spirit: document.getElementById('spirit').value,
@@ -299,41 +455,104 @@
         if (idx > -1) records[idx] = data;
         else records.unshift(data);
         
-        // 排序
-        records.sort((a, b) => new Date(b.date) - new Date(a.date));
         localStorage.setItem('douDouCat', JSON.stringify(records));
         
-        alert('记录已保存！豆豆今天也很努力在康复呢 🐱');
-        renderCalendar();
+        alert('记录已保存！豆豆今天也很努力在康复呢 ❤️');
+        renderAll();
+        // 清空表单，准备下一次快速记录
+        document.getElementById('appForm').reset();
+        dateInput.valueAsDate = new Date();
     }
 
+    // 渲染日历
     function renderCalendar() {
         const container = document.getElementById('calendar');
         container.innerHTML = '';
         const now = new Date();
         document.getElementById('monthLabel').innerText = `${now.getMonth()+1}月`;
         
+        // 获取当前月的天数
         const days = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
         
         for(let i=1; i<=days; i++) {
-            const d = i < 10 ? '0'+i : i;
-            const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${d}`;
+            const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
             const rec = records.find(r => r.date === dateStr);
             
             const div = document.createElement('div');
             div.className = 'cal-day';
-            if(i === now.getDate()) div.classList.add('today');
+            if(i === now.getDate() && now.getFullYear() === new Date().getFullYear() && now.getMonth() === new Date().getMonth()) div.classList.add('today');
             
             let content = `<span>${i}</span>`;
             
             if(rec) {
-                // 只要没血、没拉稀、吃了药 = 开心
-                const isGood = !rec.blood && rec.stool !== '拉稀' && rec.meds;
+                // 状态判断：只要有血、拉稀或精神萎靡 = Sad
+                const isGood = !rec.blood && rec.stool !== '拉稀' && rec.spirit !== '萎靡';
                 content += `<div class="status-dot ${isGood ? 'status-happy' : 'status-sad'}"></div>`;
+                div.onclick = () => {
+                    const index = records.findIndex(r => r.date === dateStr);
+                    showHistoryDetailModal(index);
+                }
             }
             
             div.innerHTML = content;
             container.appendChild(div);
+        }
+    }
+    
+    // 渲染历史记录列表
+    function renderHistoryList() {
+        const container = document.getElementById('historyList');
+        container.innerHTML = '';
+        
+        if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#999;">暂无记录哦，快去填写第一条吧！</p>';
+            return;
+        }
+
+        // 只显示最近10条
+        const recentRecords = records.slice(0, 10);
+        
+        recentRecords.forEach((r, index) => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            
+            // 状态判断：只要有血、拉稀或精神萎靡 = Bad
+            const isBad = r.blood || r.stool === '拉稀' || r.spirit === '萎靡';
+            if (isBad) div.classList.add('bad');
+            else div.classList.add('good');
+
+            div.innerHTML = `
+                <div style="font-weight:bold; color:var(--text);">${r.date} ${r.blood ? '🩸' : ''} - 便便: ${r.stool} / 精神: ${r.spirit}</div>
+                <div class="history-item-details">
+                    体重: ${r.weight || '未记录'}kg | 护肝片: ${r.liver_am && r.liver_pm ? '✅全' : '❌缺'}
+                </div>
+            `;
+            
+            // 点击事件：用当前的 index (在 records 数组中的位置)
+            const globalIndex = records.findIndex(rec => rec.date === r.date);
+            div.onclick = () => showHistoryDetailModal(globalIndex); 
+            
+            container.appendChild(div);
+        });
+    }
+
+    // 删除记录
+    function deleteRecordFromDetail() {
+        if (currentDetailRecord && confirm(`确定要删除 ${currentDetailRecord.date} 的记录吗？`)) {
+            records = records.filter(r => r.date !== currentDetailRecord.date);
+            localStorage.setItem('douDouCat', JSON.stringify(records));
+            closeHistoryDetailModal();
+            renderAll();
+        }
+    }
+    
+    // 清空所有数据
+    function clearAllData() {
+        if (confirm('⚠️ 警告！确定要清空所有数据吗？此操作不可撤销！')) {
+            localStorage.removeItem('douDouCat');
+            records = [];
+            alert('所有记录已清空。');
+            renderAll();
         }
     }
 </script>
